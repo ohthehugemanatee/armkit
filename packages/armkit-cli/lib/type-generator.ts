@@ -101,7 +101,6 @@ export class TypeGenerator {
       const cleanTypes = foo.reduce(reducer, [])
 
       if (cleanTypes.length > 1) {
-        // console.log({ cleanTypes })
         this.emitUnion(typeName, def, structFqn)
         return typeName;
       } else {
@@ -112,6 +111,7 @@ export class TypeGenerator {
     if (def.type === 'string' && def.format === 'date-time') {
       return `Date`;
     }
+
 
     switch (def.type) {
       case undefined: return 'string';
@@ -137,7 +137,6 @@ export class TypeGenerator {
           const parts = typeName.split("#") || []
           cleantypeName = (parts[1] || '').substr('/definitions/'.length);
         }
-        // console.log({ cleantypeName })
         this.emitPattern(`${toPascalCase(cleantypeName)}Pattern`, def, structFqn)
         return `${toPascalCase(cleantypeName)}Pattern`
       }
@@ -149,7 +148,6 @@ export class TypeGenerator {
           const parts = typeName.split("#") || []
           cleantypeName = (parts[1] || '').substr('/definitions/'.length);
         }
-        // console.log({ cleantypeName })
         return this.emitEnum(`${toPascalCase(cleantypeName)}Enum`, def.enum)
       }
 
@@ -207,25 +205,30 @@ export class TypeGenerator {
   }
 
   private emitUnion(typeName: string, def: JSONSchema4, fqn: string) {
+
     this.emitLater(typeName, code => {
       this.emitDescription(code, fqn, def.description);
       let list = ''
       code.openBlock(`export class ${typeName}`);
+
       for (const option of def.oneOf || def.anyOf || []) {
         if (!option.enum && option.type === 'array') list = '[]';
-        let type = ''
+        let type = "any"
         if (option.$ref) {
           type = this.typeForRef(option);
-        } else if (option.enum) {
-          let cleantypeName = typeName
 
+        } else if (option.enum) {
+
+          let cleantypeName = typeName
           if (typeName.match("#")) {
             const parts = typeName.split("#") || []
             cleantypeName = (parts[1] || '').substr('/definitions/'.length);
           }
 
           type = this.emitEnum(`${cleantypeName}Enum`, option.enum)
+
         } else if (!option.enum && option.type === 'array') {
+
           if (!option.items) type = 'any';
           const items = option.items as any
           if (items.$ref) {
@@ -236,19 +239,25 @@ export class TypeGenerator {
           else {
             type = 'any'
           }
+
         } else if (option.properties) {
+
           this.emitStruct(typeName, option, `${typeName}`)
+
         } else if (Array.isArray(option.type) || option.required) {
           type = 'any'
         } else {
+
           if (option.type) {
             type = option.type === 'integer' ? 'number' : option.type as string;
           } else {
             type = 'any'
           }
         }
-        const methodName = 'from' + type[0].toUpperCase() + type.substr(1);
-        code.openBlock(`public static ${methodName}(value: ${type}${list}): ${typeName}`);
+
+        const cleanType = type[0] || []
+        const methodName = 'from' + cleanType[0].toUpperCase() + type.substr(1);
+        code.openBlock(`public static ${methodName}(value: ${cleanType}${list}): ${typeName}`);
         code.line(`return new ${typeName}(value);`);
         code.closeBlock();
       }
@@ -266,12 +275,10 @@ export class TypeGenerator {
       code.openBlock(`export enum ${typeName}`);
       values.forEach((v) => {
         const validName = `${v}`.match(/^([a-zA-Z_])+$/) ? constantCase(`${v}`) : `"${constantCase(`${v}`)}"`
-        // console.log({ validName })
         code.line(`${validName} = '${v}',`)
       })
       code.closeBlock();
     });
-
     return typeName
   }
 
@@ -293,7 +300,6 @@ export class TypeGenerator {
 
 
   private emitStruct(typeName: string, structDef: JSONSchema4, structFqn: string) {
-    // console.log({ struct: typeName })
     this.emitLater(typeName, code => {
       this.emitDescription(code, structFqn, structDef.description);
       code.openBlock(`export interface ${typeName}`);
@@ -301,6 +307,7 @@ export class TypeGenerator {
       for (const [propName, propSpec] of Object.entries(structDef.properties || {})) {
 
         if (propName.startsWith('x-')) {
+          console.log("Warning: Skipping propName.startsWith() in type-generator::emitStruct()")
           continue; // skip extensions for now
         }
 
@@ -315,7 +322,8 @@ export class TypeGenerator {
     const originalName = name;
 
     // if name is not camelCase, convert it to camel case, but this is likely to
-    // produce invalid output during synthesis, so add some annotation to the docs.
+    // produce invalid output during synthesis, so add some annotation to the docs
+
     if (name[0] === name[0].toUpperCase()) {
       name = code.toCamelCase(name);
     }
