@@ -1,6 +1,7 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { CodeMaker } from 'codemaker';
+import { strict } from 'yargs';
 
 export enum Language {
   TYPESCRIPT = 'typescript',
@@ -36,7 +37,7 @@ export abstract class ImportBase {
 
     return config.map(value => {
       const [version, fqn] = value.split('/')
-      const [, name] = fqn.split('.')
+      const name = this.getNameFromFqn(fqn)
       const url = `${baseUrl}/${version}/${fqn}.json`
 
       return {
@@ -65,5 +66,16 @@ export abstract class ImportBase {
         await code.save(outdir);
       }
     }
+  }
+
+  // Pulls the name we can use out of the FQN.
+  private getNameFromFqn(fqn: string) : string {
+    // Get the name out of the fqn.
+    const separator: string = ".";
+    const sepPos : number = fqn.indexOf(separator);
+    if (sepPos == -1) {
+      throw new Error("Invalid schema name: " + fqn + ". Schema names should include the `.` separator.");
+    }
+    return fqn.substring(sepPos + separator.length)
   }
 }
